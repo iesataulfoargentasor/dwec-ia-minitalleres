@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Taller 1 · OCR</title>
+  <link rel="stylesheet" href="../estilos.css">
+  <script src="app.js" defer></script>
+</head>
+<body><main>
+  <a href="../">Volver a los talleres</a>
+  <h1>1. De imagen a texto</h1>
+  <p>Selecciona una imagen PNG o JPG con texto impreso en español. Después pulsa «Extraer texto».</p>
+  <p>Para empezar, puedes descargar <a href="ejemplo.png" download>esta imagen de prueba</a>.</p>
+  <label for="imagen">Imagen (máximo 10 MB)</label>
+  <input id="imagen" type="file" accept="image/png,image/jpeg,image/webp">
+  <img id="vista" alt="Vista previa de la imagen seleccionada" hidden>
+  <button id="extraer" disabled>Extraer texto</button>
+  <p id="estado" class="estado" role="status">Selecciona una imagen.</p>
+  <label for="resultado">Texto reconocido: revísalo y corrígelo si hace falta</label>
+  <textarea id="resultado" spellcheck="true"></textarea>
+  <p>El reconocimiento se realiza en tu navegador. La primera ejecución descarga el motor y el modelo de español.</p>
+</main></body>
+</html>

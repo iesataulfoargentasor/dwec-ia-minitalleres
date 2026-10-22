@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Taller 2 · Transcripción</title>
+  <link rel="stylesheet" href="../estilos.css">
+  <script type="module" src="app.js"></script>
+</head>
+<body><main>
+  <a href="../">Volver a los talleres</a>
+  <h1>2. De voz a texto</h1>
+  <p>Graba una frase corta en español o selecciona un audio. La grabación se detiene a los 15 segundos.</p>
+  <button id="grabar">Grabar</button>
+  <button id="detener" disabled>Detener grabación</button>
+  <label for="archivo">O selecciona un audio de hasta 20 segundos y 10 MB</label>
+  <input id="archivo" type="file" accept="audio/*">
+  <p><audio id="reproductor" controls aria-label="Escuchar el audio elegido" hidden></audio></p>
+  <button id="transcribir" disabled>Transcribir en español</button>
+  <p id="estado" class="estado" role="status">Graba o selecciona un audio.</p>
+  <label for="resultado">Transcripción: puedes corregirla antes de utilizarla</label>
+  <textarea id="resultado"></textarea>
+  <p>La primera transcripción descarga Whisper Tiny. Puede tardar, especialmente en equipos modestos. El audio se procesa aquí, sin enviarlo a un servicio de transcripción.</p>
+</main></body>
+</html>

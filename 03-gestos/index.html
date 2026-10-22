@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Taller 3 · Gestos</title>
+  <link rel="stylesheet" href="../estilos.css">
+  <script type="module" src="app.js"></script>
+</head>
+<body><main>
+  <a href="../">Volver a los talleres</a>
+  <h1>3. Cambiar una tarjeta con un gesto</h1>
+  <p>Mantén el pulgar hacia arriba durante un segundo para pasar a la siguiente tarjeta. Baja la mano antes de repetir.</p>
+  <button id="iniciar">Activar cámara</button>
+  <button id="parar" disabled>Apagar cámara</button>
+  <video id="video" autoplay playsinline muted aria-label="Vista previa de la cámara"></video>
+  <p id="estado" class="estado" role="status">La cámara está apagada.</p>
+  <p id="deteccion">Todavía no hay detecciones.</p>
+  <p id="tarjeta" class="tarjeta" aria-live="polite">1. Consultar actividades</p>
+  <button id="siguiente">Siguiente tarjeta (también con teclado)</button>
+  <p>El vídeo se analiza localmente y no se guarda. Esto es un experimento: comprueba con la persona usuaria si el gesto le resulta cómodo.</p>
+</main></body>
+</html>
