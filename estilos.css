@@ -17,3 +17,22 @@ audio { max-width: 100%; }
 code { background: #eef1f5; padding: 2px 5px; }
 [hidden] { display: none !important; }
 @media (max-width: 500px) { body { padding: 12px; } main { padding: 16px; } }
+.navegacion-taller { display: flex; flex-wrap: wrap; gap: 10px; margin: 24px 0; }
+.navegacion-taller a { padding: 10px 14px; background: #eaf2ff; border-radius: 6px; }
+.guia { border-top: 2px solid #bbc9da; margin-top: 36px; padding-top: 20px; }
+.guia h3 { margin-top: 32px; line-height: 1.35; }
+.guia p, .guia li { overflow-wrap: anywhere; }
+.guia li { margin-bottom: 8px; }
+.guia pre { max-width: 100%; overflow-x: auto; padding: 16px; background: #eef1f5; border-radius: 6px; font-size: .9rem; line-height: 1.65; }
+.guia pre code { padding: 0; background: none; white-space: pre; }
+.guia details { margin: 16px 0; border: 1px solid #bbc9da; padding: 12px; border-radius: 6px; }
+.guia summary { cursor: pointer; font-weight: bold; padding: 6px; }
+.nota-guia { background: #fff6e5; border-left: 4px solid #a04400; padding: 16px; }
+[id] { scroll-margin-top: 20px; }
+@media print {
+  body { max-width: none; background: white; padding: 0; }
+  main { padding: 0; }
+  .navegacion-taller, #demo, .guia details { display: none; }
+  .guia { border: 0; margin: 0; }
+  .guia pre, .guia pre code { white-space: pre-wrap; overflow-wrap: anywhere; }
+}

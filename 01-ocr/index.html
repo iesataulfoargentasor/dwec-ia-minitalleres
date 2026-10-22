@@ -10,6 +10,8 @@
 <body><main>
   <a href="../">Volver a los talleres</a>
   <h1>1. De imagen a texto</h1>
+  <nav class="navegacion-taller" aria-label="Secciones del taller"><a href="#demo">Probar el ejemplo</a><a href="#guia">Paso a paso</a><a href="#ejercicios">Ejercicios</a><a href="#codigo">Código completo</a></nav>
+  <section id="demo" aria-label="Demostración interactiva">
   <p>Selecciona una imagen PNG o JPG con texto impreso en español. Después pulsa «Extraer texto».</p>
   <p>Para empezar, puedes descargar <a href="ejemplo.png" download>esta imagen de prueba</a>.</p>
   <label for="imagen">Imagen (máximo 10 MB)</label>
@@ -20,5 +22,186 @@
   <label for="resultado">Texto reconocido: revísalo y corrígelo si hace falta</label>
   <textarea id="resultado" spellcheck="true"></textarea>
   <p>El reconocimiento se realiza en tu navegador. La primera ejecución descarga el motor y el modelo de español.</p>
+</section>
+
+<section class="guia" id="guia" aria-labelledby="titulo-guia">
+  <h2 id="titulo-guia">Guía paso a paso</h2>
+  <p>Prueba el ejemplo de arriba y sigue estos pasos. Puedes leer las explicaciones, consultar el código y resolver las actividades sin entrar en GitHub.</p>
+  <nav aria-label="Índice de la guía"><ol><li><a href="#paso-1">Prueba el ejemplo antes de modificarlo</a></li><li><a href="#paso-2">Identifica los elementos del HTML</a></li><li><a href="#paso-3">Obtén el archivo elegido</a></li><li><a href="#paso-4">Carga Tesseract y el idioma</a></li><li><a href="#paso-5">Reconoce y presenta el texto</a></li><li><a href="#paso-6">Qué puede y qué no puede hacer</a></li><li><a href="#ejercicios">Ejercicios</a></li><li><a href="#paso-8">Comprueba y explica</a></li></ol></nav>
+  <p class="nota-guia">Las pruebas y preguntas se pueden seguir aquí mismo. Para los ejercicios que piden cambiar código, utiliza una copia del proyecto en tu editor con Live Server; esta web muestra el ejemplo y su código, pero no es un editor.</p>
+  <p><strong>Objetivo:</strong> seleccionar una imagen con texto impreso y convertirla en texto editable en español. Tiempo orientativo: 45–55 minutos.</p>
+<h3 id="paso-1">1. Prueba el ejemplo antes de modificarlo</h3>
+<ol>
+<li>Utiliza la demostración de la parte superior de esta página.</li>
+<li>Descarga la imagen de prueba desde el enlace de la página.</li>
+<li>Selecciónala mediante el campo de archivo.</li>
+<li>Pulsa <strong>Extraer texto</strong> y espera a que termine la descarga inicial.</li>
+<li>Comprueba que aparece «TALLER DE LECTURA» y el horario.</li>
+<li>Si una letra o un signo no coincide, corrígelo directamente en el cuadro de texto.</li>
+</ol>
+<p>No se exige una coincidencia exacta: el OCR es un reconocimiento, no una copia del texto original.</p>
+<h3 id="paso-2">2. Identifica los elementos del HTML</h3>
+<p>Los elementos fundamentales son:</p>
+<pre tabindex="0" role="region" aria-label="Ejemplo de código; desplazable horizontalmente"><code class="language-html">&lt;label for=&quot;imagen&quot;&gt;Selecciona una imagen&lt;/label&gt;
+&lt;input id=&quot;imagen&quot; type=&quot;file&quot; accept=&quot;image/png,image/jpeg&quot;&gt;
+&lt;button id=&quot;extraer&quot; disabled&gt;Extraer texto&lt;/button&gt;
+&lt;p id=&quot;estado&quot; role=&quot;status&quot;&gt;Selecciona una imagen.&lt;/p&gt;
+&lt;label for=&quot;resultado&quot;&gt;Texto reconocido&lt;/label&gt;
+&lt;textarea id=&quot;resultado&quot;&gt;&lt;/textarea&gt;
+</code></pre>
+<ul>
+<li><code>type=&quot;file&quot;</code> permite seleccionar un archivo del dispositivo.</li>
+<li><code>accept</code> orienta al selector, pero no sustituye a la comprobación en JavaScript.</li>
+<li><code>disabled</code> evita empezar sin imagen.</li>
+<li><code>role=&quot;status&quot;</code> permite anunciar cambios de estado a tecnologías de apoyo.</li>
+<li>El <code>textarea</code> permite revisar y corregir el resultado.</li>
+</ul>
+<p>La página completa añade una vista previa, límites de tamaño y un enlace de regreso. El script se carga con <code>defer</code> para esperar a que el HTML esté preparado.</p>
+<h3 id="paso-3">3. Obtén el archivo elegido</h3>
+<pre tabindex="0" role="region" aria-label="Ejemplo de código; desplazable horizontalmente"><code class="language-javascript">const imagen = document.querySelector(&#39;#imagen&#39;);
+const archivo = imagen.files[0];
+</code></pre>
+<p><code>files</code> es la lista de archivos seleccionados. <code>[0]</code> obtiene el primero. El ejemplo comprueba el tipo y el tamaño antes de habilitar el botón.</p>
+<p>Para mostrarlo sin subirlo a un servidor:</p>
+<pre tabindex="0" role="region" aria-label="Ejemplo de código; desplazable horizontalmente"><code class="language-javascript">const url = URL.createObjectURL(archivo);
+vista.src = url;
+</code></pre>
+<p>Es una dirección temporal dentro del navegador. Cuando dejamos de necesitarla, <code>URL.revokeObjectURL(url)</code> libera el recurso asociado.</p>
+<h3 id="paso-4">4. Carga Tesseract y el idioma</h3>
+<p>El núcleo del taller está dentro del evento <code>click</code>:</p>
+<pre tabindex="0" role="region" aria-label="Ejemplo de código; desplazable horizontalmente"><code class="language-javascript">const { default: Tesseract } = await import(
+  &#39;https://cdn.jsdelivr.net/npm/tesseract.js@6.0.1/dist/tesseract.esm.min.js&#39;
+);
+const worker = await Tesseract.createWorker(&#39;spa&#39;);
+</code></pre>
+<p><code>import()</code> descarga la librería. <code>createWorker</code> prepara el motor en un trabajador que realiza el cálculo fuera del hilo de la interfaz. <code>spa</code> selecciona el modelo de español.</p>
+<p><code>await</code> significa «espera a que termine esta operación antes de continuar». La función que lo contiene se declara <code>async</code>.</p>
+<h3 id="paso-5">5. Reconoce y presenta el texto</h3>
+<pre tabindex="0" role="region" aria-label="Ejemplo de código; desplazable horizontalmente"><code class="language-javascript">const respuesta = await worker.recognize(archivo);
+resultado.value = respuesta.data.text;
+await worker.terminate();
+</code></pre>
+<p>La respuesta es un objeto. El texto se encuentra en <code>data.text</code>. Utilizamos <code>.value</code> porque estamos escribiendo en un campo de formulario.</p>
+<p>En el ejemplo completo, <code>logger</code> actualiza el progreso, <code>catch</code> explica un fallo y <code>finally</code> libera el worker. Los controles se deshabilitan mientras se procesa para evitar dos trabajos a la vez.</p>
+<h3 id="paso-6">6. Qué puede y qué no puede hacer</h3>
+<ul>
+<li>Funciona mejor con texto impreso, horizontal, nítido y con contraste.</li>
+<li>No describe el significado de una fotografía: extrae letras.</li>
+<li>No garantiza buena lectura de manuscritos o documentos complejos.</li>
+<li>Este taller no admite PDF.</li>
+<li>El resultado sigue necesitando una interfaz accesible y revisión; instalar una librería no convierte una aplicación en accesible por sí solo.</li>
+</ul>
+<h3 id="ejercicios">7. Ejercicios</h3>
+<ol>
+<li><strong>Inicial:</strong> añade un contador de caracteres después de reconocer la imagen. Pista: <code>resultado.value.length</code>.</li>
+<li><strong>Inicial:</strong> añade un botón «Borrar texto». Debe vaciar el resultado sin recargar.</li>
+<li><strong>Intermedio:</strong> añade dos botones para ajustar el tamaño del texto del resultado. Conserva un tamaño mínimo legible.</li>
+<li><strong>Ampliación:</strong> añade «Leer texto» y «Detener lectura» con <code>speechSynthesis</code>. Comprueba disponibilidad y no inicies la voz automáticamente. Las voces disponibles y su ejecución local dependen del dispositivo.</li>
+</ol>
+<h3 id="paso-8">8. Comprueba y explica</h3>
+<p>Prueba la imagen de ejemplo enlazada en la demostración, una fotografía de un aviso ficticio y una imagen sin texto. Anota qué cambió en el resultado.</p>
+<p>Responde:</p>
+<ul>
+<li>¿Qué parte de la aplicación hace la IA?</li>
+<li>¿Por qué no escribimos <code>resultado.innerHTML</code>?</li>
+<li>¿Por qué deshabilitamos el botón durante el proceso?</li>
+<li>¿Qué tendría que mejorar una persona que no puede encuadrar la imagen cómodamente?</li>
+<li>¿En qué punto debe poder corregirse un error del OCR?</li>
+</ul>
+<p><strong>Resultado mínimo:</strong> imagen seleccionable, proceso visible, texto editable y error comprensible.</p>
+
+  <h3 id="codigo">Código completo de la demostración</h3>
+  <p>Abre el archivo que quieras estudiar. Los fragmentos anteriores explican partes concretas; aquí puedes consultar el ejemplo completo. El HTML utiliza los <a href="../estilos.css">estilos comunes</a>.</p>
+  <details><summary>Ver index.html de la demostración</summary><pre tabindex="0" role="region" aria-label="Código de index.html"><code>&lt;!doctype html&gt;
+&lt;html lang=&quot;es&quot;&gt;
+&lt;head&gt;
+  &lt;meta charset=&quot;utf-8&quot;&gt;
+  &lt;meta name=&quot;viewport&quot; content=&quot;width=device-width, initial-scale=1&quot;&gt;
+  &lt;title&gt;Taller 1 · OCR&lt;/title&gt;
+  &lt;link rel=&quot;stylesheet&quot; href=&quot;../estilos.css&quot;&gt;
+  &lt;script src=&quot;app.js&quot; defer&gt;&lt;/script&gt;
+&lt;/head&gt;
+&lt;body&gt;&lt;main&gt;
+  &lt;a href=&quot;../&quot;&gt;Volver a los talleres&lt;/a&gt;
+  &lt;h1&gt;1. De imagen a texto&lt;/h1&gt;
+  &lt;p&gt;Selecciona una imagen PNG o JPG con texto impreso en español. Después pulsa «Extraer texto».&lt;/p&gt;
+  &lt;p&gt;Para empezar, puedes descargar &lt;a href=&quot;ejemplo.png&quot; download&gt;esta imagen de prueba&lt;/a&gt;.&lt;/p&gt;
+  &lt;label for=&quot;imagen&quot;&gt;Imagen (máximo 10 MB)&lt;/label&gt;
+  &lt;input id=&quot;imagen&quot; type=&quot;file&quot; accept=&quot;image/png,image/jpeg,image/webp&quot;&gt;
+  &lt;img id=&quot;vista&quot; alt=&quot;Vista previa de la imagen seleccionada&quot; hidden&gt;
+  &lt;button id=&quot;extraer&quot; disabled&gt;Extraer texto&lt;/button&gt;
+  &lt;p id=&quot;estado&quot; class=&quot;estado&quot; role=&quot;status&quot;&gt;Selecciona una imagen.&lt;/p&gt;
+  &lt;label for=&quot;resultado&quot;&gt;Texto reconocido: revísalo y corrígelo si hace falta&lt;/label&gt;
+  &lt;textarea id=&quot;resultado&quot; spellcheck=&quot;true&quot;&gt;&lt;/textarea&gt;
+  &lt;p&gt;El reconocimiento se realiza en tu navegador. La primera ejecución descarga el motor y el modelo de español.&lt;/p&gt;
+&lt;/main&gt;&lt;/body&gt;
+&lt;/html&gt;
+</code></pre></details>
+<details><summary>Ver app.js</summary><pre tabindex="0" role="region" aria-label="Código de app.js"><code>// 1. Seleccionamos los elementos del HTML.
+const imagen = document.querySelector('#imagen');
+const vista = document.querySelector('#vista');
+const extraer = document.querySelector('#extraer');
+const estado = document.querySelector('#estado');
+const resultado = document.querySelector('#resultado');
+let urlImagen;
+
+// 2. Mostramos una vista previa sin subir el archivo a Internet.
+imagen.addEventListener('change', () =&gt; {
+  if (urlImagen) URL.revokeObjectURL(urlImagen);
+  vista.hidden = true;
+  extraer.disabled = true;
+  resultado.value = '';
+  const archivo = imagen.files[0];
+  if (!archivo) return;
+  if (!['image/png', 'image/jpeg', 'image/webp'].includes(archivo.type)
+      || archivo.size &gt; 10 * 1024 * 1024) {
+    estado.textContent = 'Elige un PNG, JPG o WebP de hasta 10 MB.';
+    return;
+  }
+  urlImagen = URL.createObjectURL(archivo);
+  vista.src = urlImagen;
+  vista.hidden = false;
+  extraer.disabled = false;
+  estado.textContent = 'Imagen preparada. Pulsa Extraer texto.';
+});
+
+// 3. Cargamos la librería solo cuando se necesita.
+extraer.addEventListener('click', async () =&gt; {
+  extraer.disabled = true;
+  imagen.disabled = true;
+  resultado.value = '';
+  estado.textContent = 'Cargando el motor OCR y el idioma español…';
+  let worker;
+  try {
+    const { default: Tesseract } = await import(
+      'https://cdn.jsdelivr.net/npm/tesseract.js@6.0.1/dist/tesseract.esm.min.js'
+    );
+    // Un worker realiza el trabajo pesado fuera del hilo de la interfaz.
+    worker = await Tesseract.createWorker('spa', 1, {
+      logger: (mensaje) =&gt; {
+        if (mensaje.status === 'recognizing text') {
+          estado.textContent = `Reconociendo texto: ${Math.round(mensaje.progress * 100)} %`;
+        }
+      }
+    });
+    // 4. Entregamos el archivo al motor y esperamos su resultado.
+    const respuesta = await worker.recognize(imagen.files[0]);
+    resultado.value = respuesta.data.text;
+    estado.textContent = resultado.value.trim()
+      ? 'Terminado. Revisa el texto: el OCR puede equivocarse.'
+      : 'No se ha encontrado texto. Prueba una imagen más nítida.';
+  } catch (error) {
+    console.error(error);
+    estado.textContent = 'No se pudo leer la imagen. Comprueba la conexión y prueba otra imagen.';
+  } finally {
+    // 5. Liberamos recursos, también si se ha producido un error.
+    if (worker) await worker.terminate();
+    extraer.disabled = false;
+    imagen.disabled = false;
+  }
+});
+</code></pre></details>
+  <p><a href="#demo">Volver a la demostración</a> · <a href="../">Elegir otro taller</a></p>
+</section>
 </main></body>
 </html>

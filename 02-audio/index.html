@@ -10,6 +10,8 @@
 <body><main>
   <a href="../">Volver a los talleres</a>
   <h1>2. De voz a texto</h1>
+  <nav class="navegacion-taller" aria-label="Secciones del taller"><a href="#demo">Probar el ejemplo</a><a href="#guia">Paso a paso</a><a href="#ejercicios">Ejercicios</a><a href="#codigo">Código completo</a></nav>
+  <section id="demo" aria-label="Demostración interactiva">
   <p>Graba una frase corta en español o selecciona un audio. La grabación se detiene a los 15 segundos.</p>
   <button id="grabar">Grabar</button>
   <button id="detener" disabled>Detener grabación</button>
@@ -21,5 +23,318 @@
   <label for="resultado">Transcripción: puedes corregirla antes de utilizarla</label>
   <textarea id="resultado"></textarea>
   <p>La primera transcripción descarga Whisper Tiny. Puede tardar, especialmente en equipos modestos. El audio se procesa aquí, sin enviarlo a un servicio de transcripción.</p>
+</section>
+
+<section class="guia" id="guia" aria-labelledby="titulo-guia">
+  <h2 id="titulo-guia">Guía paso a paso</h2>
+  <p>Prueba el ejemplo de arriba y sigue estos pasos. Puedes leer las explicaciones, consultar el código y resolver las actividades sin entrar en GitHub.</p>
+  <nav aria-label="Índice de la guía"><ol><li><a href="#paso-1">Ejecuta el ejemplo</a></li><li><a href="#paso-2">Entiende las dos partes</a></li><li><a href="#paso-3">Captura la voz</a></li><li><a href="#paso-4">Prepara el formato del modelo</a></li><li><a href="#paso-5">Carga Whisper y transcribe</a></li><li><a href="#paso-6">Comunica el resultado</a></li><li><a href="#ejercicios">Ejercicios</a></li><li><a href="#paso-8">Pruebas y límites</a></li></ol></nav>
+  <p class="nota-guia">Las pruebas y preguntas se pueden seguir aquí mismo. Para los ejercicios que piden cambiar código, utiliza una copia del proyecto en tu editor con Live Server; esta web muestra el ejemplo y su código, pero no es un editor.</p>
+  <p><strong>Objetivo:</strong> grabar una frase o seleccionar un audio y obtener una transcripción editable sin enviarlo a una API de transcripción. Tiempo orientativo: 55–75 minutos.</p>
+<h3 id="paso-1">1. Ejecuta el ejemplo</h3>
+<ol>
+<li>Utiliza la demostración de la parte superior de esta página.</li>
+<li>Pulsa <strong>Grabar</strong> y concede permiso al micrófono.</li>
+<li>Di: «Mañana prepararé la lista de actividades para el taller».</li>
+<li>Pulsa <strong>Detener grabación</strong>. También se detiene automáticamente a los 15 segundos.</li>
+<li>Escucha la grabación con el reproductor.</li>
+<li>Pulsa <strong>Transcribir en español</strong>.</li>
+<li>Espera a que se descargue el modelo y se procese el audio.</li>
+<li>Compara el resultado con la frase y corrige los errores.</li>
+</ol>
+<p>Si no tienes micrófono, utiliza un archivo de audio corto. El ejemplo admite hasta 20 segundos y 10 MB. La extensión por sí sola no garantiza compatibilidad: el navegador debe poder decodificar el formato.</p>
+<h3 id="paso-2">2. Entiende las dos partes</h3>
+<pre tabindex="0" role="region" aria-label="Ejemplo de código; desplazable horizontalmente"><code class="language-text">app.js: micrófono/archivo → muestras de audio → postMessage
+                                                  ↓
+worker.js: carga Whisper → transcribe → postMessage
+                                           ↓
+app.js: muestra el texto en el textarea
+</code></pre>
+<p>El archivo <code>app.js</code> controla la interfaz. <code>worker.js</code> ejecuta el modelo aparte para mantener la página utilizable. No es un servidor: ambos se ejecutan en tu ordenador, dentro del navegador.</p>
+<p>Para una primera clase, puedes estudiar primero el paso 5 y utilizar la captura y conversión de audio como código de apoyo.</p>
+<h3 id="paso-3">3. Captura la voz</h3>
+<pre tabindex="0" role="region" aria-label="Ejemplo de código; desplazable horizontalmente"><code class="language-javascript">const flujo = await navigator.mediaDevices.getUserMedia({ audio: true });
+const grabadora = new MediaRecorder(flujo);
+grabadora.start();
+</code></pre>
+<p><code>getUserMedia</code> pide permiso y obtiene un flujo del micrófono. <code>MediaRecorder</code> lo graba. El evento <code>dataavailable</code> entrega fragmentos; al detener, se reúnen en un <code>Blob</code>:</p>
+<pre tabindex="0" role="region" aria-label="Ejemplo de código; desplazable horizontalmente"><code class="language-javascript">const blob = new Blob(partes, { type: grabadora.mimeType });
+</code></pre>
+<p>Un <code>Blob</code> es un conjunto de datos binarios: aquí representa la grabación. No fijamos WebM/MP4 porque cada navegador admite formatos diferentes.</p>
+<p><code>grabadora.stop()</code> termina la grabación. Para liberar realmente el micrófono se detienen también las pistas:</p>
+<pre tabindex="0" role="region" aria-label="Ejemplo de código; desplazable horizontalmente"><code class="language-javascript">flujo.getTracks().forEach((pista) =&gt; pista.stop());
+</code></pre>
+<p>Localiza ambos pasos en el código completo. El evento <code>stop</code> prepara el reproductor y vuelve a habilitar los controles.</p>
+<h3 id="paso-4">4. Prepara el formato del modelo</h3>
+<p>Whisper necesita muestras de audio a <strong>16 000 Hz y un canal</strong>. No se le entrega directamente el archivo comprimido como si sus bytes fueran muestras.</p>
+<p>La función <code>obtenerMuestras</code> realiza tres operaciones:</p>
+<ol>
+<li><code>decodeAudioData</code> convierte los bytes del archivo en un <code>AudioBuffer</code>.</li>
+<li><code>OfflineAudioContext</code> mezcla a mono y remuestrea a 16 000 Hz sin reproducirlo.</li>
+<li><code>getChannelData(0)</code> obtiene un <code>Float32Array</code>: una lista de valores numéricos de la señal.</li>
+</ol>
+<p>En este taller se comprueba la duración antes de transcribir. Los audios largos requieren otra estrategia de división y gestión de recursos.</p>
+<h3 id="paso-5">5. Carga Whisper y transcribe</h3>
+<p>Este es el núcleo de <code>worker.js</code>:</p>
+<pre tabindex="0" role="region" aria-label="Ejemplo de código; desplazable horizontalmente"><code class="language-javascript">const { pipeline, env } = await import(
+  &#39;https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.8.1&#39;
+);
+env.allowLocalModels = false;
+env.backends.onnx.wasm.numThreads = 1;
+
+const transcriptor = await pipeline(
+  &#39;automatic-speech-recognition&#39;,
+  &#39;Xenova/whisper-tiny&#39;,
+  { device: &#39;wasm&#39;, dtype: &#39;q8&#39; }
+);
+
+const respuesta = await transcriptor(muestras, {
+  language: &#39;spanish&#39;,
+  task: &#39;transcribe&#39;
+});
+</code></pre>
+<ul>
+<li><code>pipeline</code> prepara una tarea con un modelo ya entrenado.</li>
+<li><code>automatic-speech-recognition</code> indica la tarea: voz a texto.</li>
+<li><code>Xenova/whisper-tiny</code> es una variante multilingüe compatible con Transformers.js. No usamos una variante <code>.en</code>, que es para inglés.</li>
+<li><code>wasm</code> permite ejecutar el cálculo en CPU con WebAssembly; no necesitamos WebGPU.</li>
+<li><code>q8</code> selecciona pesos cuantizados de 8 bits, para reducir recursos frente a pesos de mayor precisión.</li>
+<li><code>numThreads = 1</code> evita exigir cabeceras especiales para múltiples hilos.</li>
+<li><code>allowLocalModels = false</code> significa que los archivos del modelo se buscan en el proveedor remoto, no en una carpeta <code>/models</code> del servidor local. <strong>La inferencia sigue siendo local.</strong></li>
+<li><code>task: &#39;transcribe&#39;</code> pide transcribir; no traducir al inglés.</li>
+</ul>
+<p>El ejemplo conserva <code>transcriptor</code> para reutilizarlo en la siguiente frase, sin volver a crear el modelo.</p>
+<h3 id="paso-6">6. Comunica el resultado</h3>
+<p>Desde la página:</p>
+<pre tabindex="0" role="region" aria-label="Ejemplo de código; desplazable horizontalmente"><code class="language-javascript">worker.postMessage({ muestras });
+</code></pre>
+<p>Desde el worker:</p>
+<pre tabindex="0" role="region" aria-label="Ejemplo de código; desplazable horizontalmente"><code class="language-javascript">self.postMessage({ tipo: &#39;resultado&#39;, texto: respuesta.text });
+</code></pre>
+<p>La página recibe el mensaje y escribe <code>resultado.value = data.texto</code>. El campo <code>tipo</code> permite distinguir mensajes de estado, resultado y error.</p>
+<h3 id="ejercicios">7. Ejercicios</h3>
+<ol>
+<li><strong>Inicial:</strong> añade un contador de palabras al recibir la transcripción. Trata el texto vacío por separado.</li>
+<li><strong>Inicial:</strong> añade un botón para borrar el resultado.</li>
+<li><strong>Intermedio:</strong> después de corregir el texto, permite añadirlo a una lista de notas de la página. Usa <code>textContent</code> para mostrarlas.</li>
+<li><strong>Ampliación:</strong> guarda esa lista con <code>localStorage</code> utilizando solo notas ficticias. Explica por qué no aparece automáticamente en otro ordenador.</li>
+</ol>
+<h3 id="paso-8">8. Pruebas y límites</h3>
+<p>Compara una frase clara, una con ruido de fondo y unos segundos de silencio. No todos los silencios producen texto vacío: el modelo puede inventar palabras. Antes de utilizar la transcripción hay que revisarla.</p>
+<p>Prueba también un archivo de más de 20 segundos, una segunda transcripción y la denegación del permiso. Si cambias un permiso, puede ser necesario recargar.</p>
+<p>Responde:</p>
+<ul>
+<li>¿Qué diferencia hay entre grabar y transcribir?</li>
+<li>¿Por qué usamos dos archivos JavaScript?</li>
+<li>¿Qué viaja por Internet y qué se procesa en el dispositivo?</li>
+<li>¿Por qué una persona debe poder corregir el texto?</li>
+<li>¿Por qué un trabajador no puede escribir directamente en el <code>textarea</code>?</li>
+</ul>
+<p><strong>Resultado mínimo:</strong> audio reproducible, transcripción en español, interfaz utilizable mientras trabaja el modelo y resultado editable. No se promete velocidad de tiempo real.</p>
+
+  <h3 id="codigo">Código completo de la demostración</h3>
+  <p>Abre el archivo que quieras estudiar. Los fragmentos anteriores explican partes concretas; aquí puedes consultar el ejemplo completo. El HTML utiliza los <a href="../estilos.css">estilos comunes</a>.</p>
+  <details><summary>Ver index.html de la demostración</summary><pre tabindex="0" role="region" aria-label="Código de index.html"><code>&lt;!doctype html&gt;
+&lt;html lang=&quot;es&quot;&gt;
+&lt;head&gt;
+  &lt;meta charset=&quot;utf-8&quot;&gt;
+  &lt;meta name=&quot;viewport&quot; content=&quot;width=device-width, initial-scale=1&quot;&gt;
+  &lt;title&gt;Taller 2 · Transcripción&lt;/title&gt;
+  &lt;link rel=&quot;stylesheet&quot; href=&quot;../estilos.css&quot;&gt;
+  &lt;script type=&quot;module&quot; src=&quot;app.js&quot;&gt;&lt;/script&gt;
+&lt;/head&gt;
+&lt;body&gt;&lt;main&gt;
+  &lt;a href=&quot;../&quot;&gt;Volver a los talleres&lt;/a&gt;
+  &lt;h1&gt;2. De voz a texto&lt;/h1&gt;
+  &lt;p&gt;Graba una frase corta en español o selecciona un audio. La grabación se detiene a los 15 segundos.&lt;/p&gt;
+  &lt;button id=&quot;grabar&quot;&gt;Grabar&lt;/button&gt;
+  &lt;button id=&quot;detener&quot; disabled&gt;Detener grabación&lt;/button&gt;
+  &lt;label for=&quot;archivo&quot;&gt;O selecciona un audio de hasta 20 segundos y 10 MB&lt;/label&gt;
+  &lt;input id=&quot;archivo&quot; type=&quot;file&quot; accept=&quot;audio/*&quot;&gt;
+  &lt;p&gt;&lt;audio id=&quot;reproductor&quot; controls aria-label=&quot;Escuchar el audio elegido&quot; hidden&gt;&lt;/audio&gt;&lt;/p&gt;
+  &lt;button id=&quot;transcribir&quot; disabled&gt;Transcribir en español&lt;/button&gt;
+  &lt;p id=&quot;estado&quot; class=&quot;estado&quot; role=&quot;status&quot;&gt;Graba o selecciona un audio.&lt;/p&gt;
+  &lt;label for=&quot;resultado&quot;&gt;Transcripción: puedes corregirla antes de utilizarla&lt;/label&gt;
+  &lt;textarea id=&quot;resultado&quot;&gt;&lt;/textarea&gt;
+  &lt;p&gt;La primera transcripción descarga Whisper Tiny. Puede tardar, especialmente en equipos modestos. El audio se procesa aquí, sin enviarlo a un servicio de transcripción.&lt;/p&gt;
+&lt;/main&gt;&lt;/body&gt;
+&lt;/html&gt;
+</code></pre></details>
+<details><summary>Ver app.js</summary><pre tabindex="0" role="region" aria-label="Código de app.js"><code>// La interfaz prepara el audio; worker.js ejecuta la IA sin bloquear la página.
+const grabar = document.querySelector('#grabar');
+const detener = document.querySelector('#detener');
+const archivo = document.querySelector('#archivo');
+const transcribir = document.querySelector('#transcribir');
+const reproductor = document.querySelector('#reproductor');
+const estado = document.querySelector('#estado');
+const resultado = document.querySelector('#resultado');
+let audioElegido;
+let urlAudio;
+let grabadora;
+let flujo;
+let temporizador;
+let worker;
+
+function prepararAudio(blob) {
+  audioElegido = blob;
+  if (urlAudio) URL.revokeObjectURL(urlAudio);
+  urlAudio = URL.createObjectURL(blob);
+  reproductor.src = urlAudio;
+  reproductor.hidden = false;
+  transcribir.disabled = false;
+  resultado.value = '';
+  estado.textContent = 'Audio preparado. Escúchalo y pulsa Transcribir.';
+}
+
+function bloquear(ocupado) {
+  grabar.disabled = ocupado || !navigator.mediaDevices?.getUserMedia || !window.MediaRecorder;
+  archivo.disabled = ocupado;
+  transcribir.disabled = ocupado || !audioElegido;
+}
+
+archivo.addEventListener('change', () =&gt; {
+  const fichero = archivo.files[0];
+  if (!fichero) return;
+  if (fichero.size &gt; 10 * 1024 * 1024) {
+    estado.textContent = 'El archivo supera 10 MB. Elige uno más pequeño.';
+    return;
+  }
+  prepararAudio(fichero);
+});
+
+// 1. Pedimos permiso y grabamos. No fijamos un formato: decide el navegador.
+grabar.addEventListener('click', async () =&gt; {
+  bloquear(true);
+  estado.textContent = 'Esperando permiso para utilizar el micrófono…';
+  try {
+    flujo = await navigator.mediaDevices.getUserMedia({ audio: true });
+    grabadora = new MediaRecorder(flujo);
+    const partes = [];
+    grabadora.addEventListener('dataavailable', (evento) =&gt; {
+      if (evento.data.size &gt; 0) partes.push(evento.data);
+    });
+    grabadora.addEventListener('stop', () =&gt; {
+      clearTimeout(temporizador);
+      flujo.getTracks().forEach((pista) =&gt; pista.stop());
+      detener.disabled = true;
+      prepararAudio(new Blob(partes, { type: grabadora.mimeType }));
+      bloquear(false);
+    });
+    grabadora.start();
+    detener.disabled = false;
+    estado.textContent = 'Grabando… Di una frase y pulsa Detener (máximo 15 segundos).';
+    temporizador = setTimeout(pararGrabacion, 15000);
+  } catch (error) {
+    console.error(error);
+    flujo?.getTracks().forEach((pista) =&gt; pista.stop());
+    estado.textContent = 'No se pudo abrir el micrófono. Revisa los permisos o selecciona un archivo.';
+    bloquear(false);
+  }
+});
+
+function pararGrabacion() {
+  if (grabadora?.state === 'recording') grabadora.stop();
+}
+detener.addEventListener('click', pararGrabacion);
+
+// 2. Convertimos cualquier formato que el navegador pueda decodificar a
+// muestras mono de 16 kHz: es la entrada que espera este modelo Whisper.
+async function obtenerMuestras(blob) {
+  const contexto = new AudioContext();
+  let audio;
+  try {
+    audio = await contexto.decodeAudioData(await blob.arrayBuffer());
+  } finally {
+    await contexto.close();
+  }
+  if (audio.duration &gt; 20) throw new Error('El audio debe durar como máximo 20 segundos.');
+  const offline = new OfflineAudioContext(1, Math.ceil(audio.duration * 16000), 16000);
+  const fuente = offline.createBufferSource();
+  fuente.buffer = audio;
+  fuente.connect(offline.destination);
+  fuente.start();
+  const convertido = await offline.startRendering();
+  return convertido.getChannelData(0);
+}
+
+// 3. Creamos el worker la primera vez y escuchamos sus mensajes.
+function obtenerWorker() {
+  if (worker) return worker;
+  worker = new Worker(new URL('./worker.js', import.meta.url), { type: 'module' });
+  worker.addEventListener('message', ({ data }) =&gt; {
+    if (data.tipo === 'estado') estado.textContent = data.texto;
+    if (data.tipo === 'resultado') {
+      resultado.value = data.texto;
+      estado.textContent = 'Terminado. Revisa la transcripción antes de utilizarla.';
+      bloquear(false);
+    }
+    if (data.tipo === 'error') {
+      estado.textContent = data.texto;
+      bloquear(false);
+    }
+  });
+  worker.addEventListener('error', () =&gt; {
+    estado.textContent = 'No se pudo iniciar la IA. Comprueba la conexión y vuelve a intentarlo.';
+    worker.terminate();
+    worker = null;
+    bloquear(false);
+  });
+  return worker;
+}
+
+transcribir.addEventListener('click', async () =&gt; {
+  bloquear(true);
+  resultado.value = '';
+  estado.textContent = 'Preparando el audio…';
+  try {
+    const muestras = await obtenerMuestras(audioElegido);
+    obtenerWorker().postMessage({ muestras });
+  } catch (error) {
+    console.error(error);
+    estado.textContent = `No se pudo preparar el audio: ${error.message}`;
+    bloquear(false);
+  }
+});
+
+window.addEventListener('pagehide', () =&gt; {
+  clearTimeout(temporizador);
+  flujo?.getTracks().forEach((pista) =&gt; pista.stop());
+  worker?.terminate();
+  worker = null;
+});
+bloquear(false);
+</code></pre></details>
+<details><summary>Ver worker.js</summary><pre tabindex="0" role="region" aria-label="Código de worker.js"><code>// Un worker no accede al DOM: se comunica con app.js mediante mensajes.
+let transcriptor;
+
+self.addEventListener('message', async ({ data }) =&gt; {
+  try {
+    if (!transcriptor) {
+      self.postMessage({ tipo: 'estado', texto: 'Descargando Whisper Tiny… La primera vez puede tardar varios minutos.' });
+      const { pipeline, env } = await import(
+        'https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.8.1'
+      );
+      env.allowLocalModels = false;
+      // Un solo hilo evita necesitar cabeceras especiales en Live Server/Pages.
+      env.backends.onnx.wasm.numThreads = 1;
+      transcriptor = await pipeline('automatic-speech-recognition', 'Xenova/whisper-tiny', {
+        device: 'wasm',
+        dtype: 'q8'
+      });
+    }
+    self.postMessage({ tipo: 'estado', texto: 'Transcribiendo en tu dispositivo…' });
+    const respuesta = await transcriptor(data.muestras, {
+      language: 'spanish',
+      task: 'transcribe'
+    });
+    self.postMessage({ tipo: 'resultado', texto: respuesta.text });
+  } catch (error) {
+    console.error(error);
+    self.postMessage({ tipo: 'error', texto: 'No se pudo transcribir. Comprueba la conexión, prueba un audio más corto o recarga la página.' });
+  }
+});
+</code></pre></details>
+  <p><a href="#demo">Volver a la demostración</a> · <a href="../">Elegir otro taller</a></p>
+</section>
 </main></body>
 </html>

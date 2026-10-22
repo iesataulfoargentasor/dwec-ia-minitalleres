@@ -10,6 +10,8 @@
 <body><main>
   <a href="../">Volver a los talleres</a>
   <h1>3. Cambiar una tarjeta con un gesto</h1>
+  <nav class="navegacion-taller" aria-label="Secciones del taller"><a href="#demo">Probar el ejemplo</a><a href="#guia">Paso a paso</a><a href="#ejercicios">Ejercicios</a><a href="#codigo">Código completo</a></nav>
+  <section id="demo" aria-label="Demostración interactiva">
   <p>Mantén el pulgar hacia arriba durante un segundo para pasar a la siguiente tarjeta. Baja la mano antes de repetir.</p>
   <button id="iniciar">Activar cámara</button>
   <button id="parar" disabled>Apagar cámara</button>
@@ -19,5 +21,251 @@
   <p id="tarjeta" class="tarjeta" aria-live="polite">1. Consultar actividades</p>
   <button id="siguiente">Siguiente tarjeta (también con teclado)</button>
   <p>El vídeo se analiza localmente y no se guarda. Esto es un experimento: comprueba con la persona usuaria si el gesto le resulta cómodo.</p>
+</section>
+
+<section class="guia" id="guia" aria-labelledby="titulo-guia">
+  <h2 id="titulo-guia">Guía paso a paso</h2>
+  <p>Prueba el ejemplo de arriba y sigue estos pasos. Puedes leer las explicaciones, consultar el código y resolver las actividades sin entrar en GitHub.</p>
+  <nav aria-label="Índice de la guía"><ol><li><a href="#paso-1">Prueba primero la alternativa sencilla</a></li><li><a href="#paso-2">Activa y prueba la cámara</a></li><li><a href="#paso-3">Separa acción y reconocimiento</a></li><li><a href="#paso-4">Carga MediaPipe y el modelo</a></li><li><a href="#paso-5">Conecta la cámara a un vídeo</a></li><li><a href="#paso-6">Obtén el gesto</a></li><li><a href="#paso-7">Decide cuándo ejecutar la acción</a></li><li><a href="#ejercicios">Ejercicios</a></li><li><a href="#paso-9">Comprueba y reflexiona</a></li></ol></nav>
+  <p class="nota-guia">Las pruebas y preguntas se pueden seguir aquí mismo. Para los ejercicios que piden cambiar código, utiliza una copia del proyecto en tu editor con Live Server; esta web muestra el ejemplo y su código, pero no es un editor.</p>
+  <p><strong>Objetivo:</strong> reconocer el gesto de pulgar hacia arriba y usarlo para pasar a la siguiente tarjeta. Tiempo orientativo: 55–75 minutos.</p>
+<h3 id="paso-1">1. Prueba primero la alternativa sencilla</h3>
+<p>En la demostración de esta página, pulsa <strong>Siguiente tarjeta</strong>. Debe recorrer tres textos. Prueba también con Tab y Enter o Espacio.</p>
+<p>La acción existe antes de añadir IA. El gesto será otra forma de activar esa misma acción, no el único modo de utilizar la aplicación.</p>
+<h3 id="paso-2">2. Activa y prueba la cámara</h3>
+<ol>
+<li>Pulsa <strong>Activar cámara</strong> y espera a que se descargue el modelo.</li>
+<li>Concede permiso cuando lo pida el navegador.</li>
+<li>Coloca una sola mano completa delante de la cámara, con buena iluminación.</li>
+<li>Levanta el pulgar y mantenlo aproximadamente un segundo.</li>
+<li>La tarjeta debe cambiar una vez.</li>
+<li>Baja la mano antes de repetir el gesto.</li>
+<li>Pulsa <strong>Apagar cámara</strong> y comprueba que se libera el dispositivo.</li>
+</ol>
+<p>La cámara también se apaga al ocultar la pestaña. No se graba vídeo ni se solicita micrófono.</p>
+<h3 id="paso-3">3. Separa acción y reconocimiento</h3>
+<pre tabindex="0" role="region" aria-label="Ejemplo de código; desplazable horizontalmente"><code class="language-javascript">const tarjetas = [&#39;Consultar actividades&#39;, &#39;Buscar recursos&#39;, &#39;Ver mis notas&#39;];
+let indice = 0;
+
+function cambiarTarjeta() {
+  indice = (indice + 1) % tarjetas.length;
+  tarjeta.textContent = `${indice + 1}. ${tarjetas[indice]}`;
+}
+</code></pre>
+<p><code>%</code> calcula el resto. Cuando llegamos al final, el índice vuelve a cero. El botón y la detección llaman a la misma función.</p>
+<h3 id="paso-4">4. Carga MediaPipe y el modelo</h3>
+<p>En <code>app.js</code>, la importación proporciona dos herramientas:</p>
+<ul>
+<li><code>FilesetResolver</code>: localiza los archivos necesarios para ejecutar el motor.</li>
+<li><code>GestureRecognizer</code>: crea el reconocedor y analiza imágenes.</li>
+</ul>
+<p>Después de cargar los archivos, se prepara el modelo:</p>
+<pre tabindex="0" role="region" aria-label="Ejemplo de código; desplazable horizontalmente"><code class="language-javascript">reconocedor = await GestureRecognizer.createFromOptions(archivos, {
+  baseOptions: { modelAssetPath: &#39;URL_DEL_MODELO&#39; },
+  runningMode: &#39;VIDEO&#39;,
+  numHands: 1
+});
+</code></pre>
+<p>Este fragmento es explicativo: el archivo <code>app.js</code> contiene la dirección real del modelo. <code>VIDEO</code> indica una secuencia de fotogramas y <code>numHands: 1</code> limita la práctica a una mano.</p>
+<h3 id="paso-5">5. Conecta la cámara a un vídeo</h3>
+<pre tabindex="0" role="region" aria-label="Ejemplo de código; desplazable horizontalmente"><code class="language-javascript">flujo = await navigator.mediaDevices.getUserMedia({
+  video: { width: 640, height: 480 },
+  audio: false
+});
+video.srcObject = flujo;
+await video.play();
+</code></pre>
+<p><code>srcObject</code> conecta el flujo de cámara con el elemento <code>&lt;video&gt;</code>. El tamaño solicitado es una preferencia que el navegador negocia con la cámara.</p>
+<p>Para apagarla, no basta con ocultar el vídeo:</p>
+<pre tabindex="0" role="region" aria-label="Ejemplo de código; desplazable horizontalmente"><code class="language-javascript">flujo.getTracks().forEach((pista) =&gt; pista.stop());
+video.srcObject = null;
+</code></pre>
+<h3 id="paso-6">6. Obtén el gesto</h3>
+<pre tabindex="0" role="region" aria-label="Ejemplo de código; desplazable horizontalmente"><code class="language-javascript">const respuesta = reconocedor.recognizeForVideo(video, ahora);
+const gesto = respuesta.gestures[0]?.[0];
+</code></pre>
+<p><code>ahora</code> es la marca de tiempo que proporciona <code>requestAnimationFrame</code>. <code>gestures[0]</code> corresponde a la primera mano. El siguiente <code>[0]</code> toma su primer resultado. <code>?.</code> evita un error cuando no hay mano.</p>
+<p>El resultado puede incluir:</p>
+<pre tabindex="0" role="region" aria-label="Ejemplo de código; desplazable horizontalmente"><code class="language-javascript">{ categoryName: &#39;Thumb_Up&#39;, score: 0.91 }
+</code></pre>
+<p><code>Thumb_Up</code> es el nombre de la categoría; <code>score</code> es una puntuación del modelo. No significa una garantía de acierto del 91 % para una persona concreta.</p>
+<p>El modelo preparado también reconoce categorías como <code>Open_Palm</code>, <code>Closed_Fist</code>, <code>Pointing_Up</code>, <code>Thumb_Down</code>, <code>Victory</code> e <code>ILoveYou</code>. No comprende cualquier gesto ni traduce lengua de signos.</p>
+<h3 id="paso-7">7. Decide cuándo ejecutar la acción</h3>
+<p>Sería un error ejecutar la acción en cada fotograma: un único gesto podría cambiar muchas tarjetas.</p>
+<p>El ejemplo exige:</p>
+<ol>
+<li>Categoría <code>Thumb_Up</code>.</li>
+<li>Puntuación mínima de <code>0.75</code>.</li>
+<li>Gesto mantenido durante <code>1000</code> milisegundos.</li>
+<li>No haber utilizado ya ese gesto mantenido.</li>
+</ol>
+<p>Las variables <code>inicioGesto</code> y <code>gestoUtilizado</code> recuerdan esa información. Cuando deja de cumplirse la condición, el ejemplo permite iniciar un nuevo gesto.</p>
+<p>Esta lógica es deliberadamente sencilla: si la detección fluctúa, puede reiniciarse. Una aplicación más avanzada podría exigir un tiempo mínimo sin gesto antes de volver a activarlo.</p>
+<p>Para reducir trabajo, analizamos como máximo unos diez fotogramas por segundo. <code>recognizeForVideo</code> es síncrono y puede bloquear brevemente la interfaz; esta versión didáctica limita la frecuencia. Para vídeo más exigente, una ampliación sería mover la inferencia a un worker.</p>
+<h3 id="ejercicios">8. Ejercicios</h3>
+<ol>
+<li><strong>Inicial:</strong> añade dos tarjetas nuevas al array.</li>
+<li><strong>Inicial:</strong> cambia el gesto a <code>Open_Palm</code> y modifica también las instrucciones visibles.</li>
+<li><strong>Intermedio:</strong> añade un selector de duración (por ejemplo, 1, 1.5 y 2 segundos).</li>
+<li><strong>Intermedio:</strong> muestra una barra que indique cuánto falta para activar la acción.</li>
+<li><strong>Ampliación:</strong> exige medio segundo sin gesto antes de permitir otro. Compara si reduce las activaciones accidentales.</li>
+</ol>
+<h3 id="paso-9">9. Comprueba y reflexiona</h3>
+<p>Prueba sin mano, con el gesto breve, con el gesto mantenido y con iluminación diferente. Apaga y vuelve a encender la cámara. Comprueba que el botón sigue funcionando cuando la cámara está apagada o se deniega el permiso.</p>
+<p>Responde:</p>
+<ul>
+<li>¿Qué parte hace el modelo y qué parte decide nuestro código?</li>
+<li>¿Qué pasaría si quitásemos <code>gestoUtilizado</code>?</li>
+<li>¿Subir el umbral siempre mejora la experiencia?</li>
+<li>¿Puede la persona destinataria mantener este gesto sin dolor o fatiga?</li>
+<li>¿Qué alternativa ofrecerías si no puede hacerlo?</li>
+</ul>
+<p><strong>Resultado mínimo:</strong> cámara controlable, detección visible, gesto mantenido que cambia una tarjeta y botón alternativo utilizable con teclado. Es un prototipo de interacción, no una ayuda técnica validada.</p>
+
+  <h3 id="codigo">Código completo de la demostración</h3>
+  <p>Abre el archivo que quieras estudiar. Los fragmentos anteriores explican partes concretas; aquí puedes consultar el ejemplo completo. El HTML utiliza los <a href="../estilos.css">estilos comunes</a>.</p>
+  <details><summary>Ver index.html de la demostración</summary><pre tabindex="0" role="region" aria-label="Código de index.html"><code>&lt;!doctype html&gt;
+&lt;html lang=&quot;es&quot;&gt;
+&lt;head&gt;
+  &lt;meta charset=&quot;utf-8&quot;&gt;
+  &lt;meta name=&quot;viewport&quot; content=&quot;width=device-width, initial-scale=1&quot;&gt;
+  &lt;title&gt;Taller 3 · Gestos&lt;/title&gt;
+  &lt;link rel=&quot;stylesheet&quot; href=&quot;../estilos.css&quot;&gt;
+  &lt;script type=&quot;module&quot; src=&quot;app.js&quot;&gt;&lt;/script&gt;
+&lt;/head&gt;
+&lt;body&gt;&lt;main&gt;
+  &lt;a href=&quot;../&quot;&gt;Volver a los talleres&lt;/a&gt;
+  &lt;h1&gt;3. Cambiar una tarjeta con un gesto&lt;/h1&gt;
+  &lt;p&gt;Mantén el pulgar hacia arriba durante un segundo para pasar a la siguiente tarjeta. Baja la mano antes de repetir.&lt;/p&gt;
+  &lt;button id=&quot;iniciar&quot;&gt;Activar cámara&lt;/button&gt;
+  &lt;button id=&quot;parar&quot; disabled&gt;Apagar cámara&lt;/button&gt;
+  &lt;video id=&quot;video&quot; autoplay playsinline muted aria-label=&quot;Vista previa de la cámara&quot;&gt;&lt;/video&gt;
+  &lt;p id=&quot;estado&quot; class=&quot;estado&quot; role=&quot;status&quot;&gt;La cámara está apagada.&lt;/p&gt;
+  &lt;p id=&quot;deteccion&quot;&gt;Todavía no hay detecciones.&lt;/p&gt;
+  &lt;p id=&quot;tarjeta&quot; class=&quot;tarjeta&quot; aria-live=&quot;polite&quot;&gt;1. Consultar actividades&lt;/p&gt;
+  &lt;button id=&quot;siguiente&quot;&gt;Siguiente tarjeta (también con teclado)&lt;/button&gt;
+  &lt;p&gt;El vídeo se analiza localmente y no se guarda. Esto es un experimento: comprueba con la persona usuaria si el gesto le resulta cómodo.&lt;/p&gt;
+&lt;/main&gt;&lt;/body&gt;
+&lt;/html&gt;
+</code></pre></details>
+<details><summary>Ver app.js</summary><pre tabindex="0" role="region" aria-label="Código de app.js"><code>const iniciar = document.querySelector('#iniciar');
+const parar = document.querySelector('#parar');
+const video = document.querySelector('#video');
+const estado = document.querySelector('#estado');
+const deteccion = document.querySelector('#deteccion');
+const tarjeta = document.querySelector('#tarjeta');
+const siguiente = document.querySelector('#siguiente');
+const tarjetas = ['Consultar actividades', 'Buscar recursos', 'Ver mis notas'];
+let indice = 0;
+let reconocedor;
+let flujo;
+let animacion;
+let activo = false;
+let ultimoFotograma = -1;
+let ultimoAnalisis = 0;
+let inicioGesto = null;
+let gestoUtilizado = false;
+const CONFIANZA_MINIMA = 0.75;
+const DURACION_GESTO = 1000;
+
+// 1. La acción está separada de la IA: también funciona con un botón normal.
+function cambiarTarjeta() {
+  indice = (indice + 1) % tarjetas.length;
+  tarjeta.textContent = `${indice + 1}. ${tarjetas[indice]}`;
+}
+siguiente.addEventListener('click', cambiarTarjeta);
+
+// 2. Descargamos el modelo antes de pedir la cámara.
+iniciar.addEventListener('click', async () =&gt; {
+  iniciar.disabled = true;
+  estado.textContent = 'Cargando el reconocedor de gestos…';
+  try {
+    if (!navigator.mediaDevices?.getUserMedia) {
+      throw new Error('Abre la página en localhost o HTTPS y utiliza un navegador compatible.');
+    }
+    if (!reconocedor) {
+      const { FilesetResolver, GestureRecognizer } = await import(
+        'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.22-rc.20250304/vision_bundle.mjs'
+      );
+      const archivos = await FilesetResolver.forVisionTasks(
+        'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.22-rc.20250304/wasm'
+      );
+      reconocedor = await GestureRecognizer.createFromOptions(archivos, {
+        baseOptions: {
+          modelAssetPath: 'https://storage.googleapis.com/mediapipe-models/gesture_recognizer/gesture_recognizer/float16/1/gesture_recognizer.task'
+        },
+        runningMode: 'VIDEO',
+        numHands: 1
+      });
+    }
+    flujo = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480 }, audio: false });
+    video.srcObject = flujo;
+    await video.play();
+    activo = true;
+    parar.disabled = false;
+    estado.textContent = 'Cámara activa. Mantén el pulgar hacia arriba durante un segundo.';
+    animacion = requestAnimationFrame(analizar);
+  } catch (error) {
+    apagar();
+    console.error(error);
+    estado.textContent = `No se pudo activar: ${error.message}. Puedes usar el botón Siguiente.`;
+  }
+});
+
+// 3. Analizamos como máximo unas 10 imágenes por segundo.
+function analizar(ahora) {
+  if (!activo) return;
+  try {
+    if (video.readyState &gt;= 2 &amp;&amp; video.currentTime !== ultimoFotograma &amp;&amp; ahora - ultimoAnalisis &gt;= 100) {
+      ultimoFotograma = video.currentTime;
+      ultimoAnalisis = ahora;
+      const respuesta = reconocedor.recognizeForVideo(video, ahora);
+      const gesto = respuesta.gestures[0]?.[0];
+      deteccion.textContent = gesto
+        ? `Gesto: ${gesto.categoryName}. Puntuación del modelo: ${Math.round(gesto.score * 100)} %`
+        : 'No se detecta una mano.';
+      // 4. Exigimos un gesto mantenido; no activamos una acción por fotograma.
+      if (gesto?.categoryName === 'Thumb_Up' &amp;&amp; gesto.score &gt;= CONFIANZA_MINIMA) {
+        if (inicioGesto === null) inicioGesto = ahora;
+        if (!gestoUtilizado &amp;&amp; ahora - inicioGesto &gt;= DURACION_GESTO) {
+          cambiarTarjeta();
+          gestoUtilizado = true;
+          estado.textContent = 'Tarjeta cambiada. Baja la mano antes de repetir.';
+        }
+      } else {
+        inicioGesto = null;
+        gestoUtilizado = false;
+      }
+    }
+    animacion = requestAnimationFrame(analizar);
+  } catch (error) {
+    apagar();
+    console.error(error);
+    estado.textContent = 'Se ha detenido la detección. Puedes reintentar o utilizar el botón Siguiente.';
+  }
+}
+
+// 5. Detener el vídeo no basta: hay que detener sus pistas.
+function apagar() {
+  activo = false;
+  cancelAnimationFrame(animacion);
+  flujo?.getTracks().forEach((pista) =&gt; pista.stop());
+  video.srcObject = null;
+  inicioGesto = null;
+  gestoUtilizado = false;
+  ultimoFotograma = -1;
+  iniciar.disabled = false;
+  parar.disabled = true;
+  estado.textContent = 'La cámara está apagada.';
+  deteccion.textContent = 'No se está analizando vídeo.';
+}
+parar.addEventListener('click', apagar);
+document.addEventListener('visibilitychange', () =&gt; {
+  if (document.hidden &amp;&amp; activo) apagar();
+});
+window.addEventListener('pagehide', apagar);
+</code></pre></details>
+  <p><a href="#demo">Volver a la demostración</a> · <a href="../">Elegir otro taller</a></p>
+</section>
 </main></body>
 </html>

@@ -12,6 +12,8 @@ El objetivo es conocer herramientas que puedan responder a una necesidad real de
 
 El navegador descarga automáticamente las librerías y los modelos cuando se necesitan. Permite el acceso al micrófono o la cámara al utilizar esas funciones. La primera carga puede tardar.
 
+**Las explicaciones y los ejercicios también están en la web:** entra en un taller y utiliza los enlaces «Paso a paso», «Ejercicios» y «Código completo». No es necesario abrir los README para seguir las guías. Los ejercicios que requieren modificar código se realizan en una copia del proyecto con un editor; la web publicada no incluye editor.
+
 **Para estudiar y modificar el código:** descarga el proyecto, abre la carpeta con Visual Studio Code y ejecuta `index.html` con Live Server. No abras los HTML haciendo doble clic. La preparación que sigue corresponde a esta opción de trabajo local; no es necesaria para probar la web publicada.
 
 ## Índice
