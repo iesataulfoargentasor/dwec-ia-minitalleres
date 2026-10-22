@@ -4,7 +4,15 @@ Tres prácticas guiadas de **HTML y JavaScript**, pensadas para alumnado de Desa
 
 El objetivo es conocer herramientas que puedan responder a una necesidad real detectada en una entrevista. No hace falta entrenar modelos ni disponer de una clave de API de pago.
 
-**Empieza aquí:** descarga el proyecto, abre la carpeta con Visual Studio Code y ejecuta `index.html` con Live Server. No abras los HTML haciendo doble clic.
+**Pruébalos directamente, sin instalar nada:** [Abrir los tres talleres en el navegador](https://iesataulfoargentasor.github.io/dwec-ia-minitalleres/).
+
+- [Probar OCR](https://iesataulfoargentasor.github.io/dwec-ia-minitalleres/01-ocr/)
+- [Probar transcripción de audio](https://iesataulfoargentasor.github.io/dwec-ia-minitalleres/02-audio/)
+- [Probar detección de gestos](https://iesataulfoargentasor.github.io/dwec-ia-minitalleres/03-gestos/)
+
+El navegador descarga automáticamente las librerías y los modelos cuando se necesitan. Permite el acceso al micrófono o la cámara al utilizar esas funciones. La primera carga puede tardar.
+
+**Para estudiar y modificar el código:** descarga el proyecto, abre la carpeta con Visual Studio Code y ejecuta `index.html` con Live Server. No abras los HTML haciendo doble clic. La preparación que sigue corresponde a esta opción de trabajo local; no es necesaria para probar la web publicada.
 
 ## Índice
 
